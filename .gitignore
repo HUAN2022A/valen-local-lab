@@ -1,0 +1,15 @@
+Valen/
+models/
+logs/
+.venv/
+__pycache__/
+*.py[cod]
+.local-runtime/
+.env
+.env.*
+*.log
+*.tar.gz
+.openai/
+.qa-profile/
+.chrome-headless-profile/
+environment.freeze.txt
