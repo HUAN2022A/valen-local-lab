@@ -69,6 +69,19 @@ class DemoTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertTrue(response.read())
 
+    def test_saved_latency_is_real_hardware_report_not_demo_predictions(self):
+        report = self.get('/api/latency')
+        self.assertTrue(report['available'])
+        self.assertFalse(report['matches_current_profile'])
+        self.assertEqual(report['report']['status'], 'complete')
+        self.assertEqual(set(report['report']['modalities']), {'text', 'image', 'video'})
+        for entry in report['report']['modalities'].values():
+            samples = [sample['inference_seconds'] for sample in entry['samples']]
+            self.assertEqual(len(samples), entry['sample_count'])
+            self.assertAlmostEqual(sum(samples) / len(samples), entry['mean_seconds'])
+            self.assertEqual(min(samples), entry['min_seconds'])
+            self.assertEqual(max(samples), entry['max_seconds'])
+
     def test_inference_is_unavailable_and_paths_are_confined(self):
         for path, data in (('/api/infer', b'instructions=hello'), ('/api/model/unload', b'')):
             request = Request(self.base + path, data=data, headers={'Content-Type': 'application/x-www-form-urlencoded'})

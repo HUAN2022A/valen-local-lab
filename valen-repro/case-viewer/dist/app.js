@@ -295,9 +295,26 @@ async function runInference(event) {
   }
 }
 
+async function loadLatency() {
+  try {
+    const data = await api("/api/latency");
+    let html = `<h2>不同模态的平均推理耗时</h2><p>${esc(data.reason || "暂无实测结果")}</p>`;
+    if (data.available) {
+      const report = data.report;
+      const profile = report.profile;
+      const labels = { text: "文本", image: "图片", video: "视频" };
+      const rows = Object.entries(report.modalities).map(([key, value]) => `<tr><th scope="row">${esc(labels[key] || key)}</th><td><strong>${Number(value.mean_seconds).toFixed(3)} 秒</strong></td><td>${Number(value.median_seconds).toFixed(3)} 秒</td><td>${Number(value.min_seconds).toFixed(3)}–${Number(value.max_seconds).toFixed(3)} 秒</td><td>${value.distinct_inputs} 个输入 × ${value.sample_count / value.distinct_inputs} 轮</td><td>${Number(value.warmup_inference_seconds).toFixed(3)} 秒</td></tr>`).join("");
+      html = `<h2>不同模态的平均推理耗时 <small>本机小范围实测</small></h2><p>${esc(profile.gpu)} · ${esc(profile.dtype.toUpperCase())} / ${esc(profile.quant)} · ${esc(report.measured_at.replace("T", " "))}</p><div class="latency-scroll"><table><thead><tr><th>模态</th><th>预热后平均</th><th>中位数</th><th>最小–最大</th><th>采样次数</th><th>首次 / 预热请求</th></tr></thead><tbody>${rows}</tbody></table></div><p>单次请求只包含一道 Choice 问题；每种模态先预热 1 次，不计入平均值。包含媒体预处理与 GPU 推理，不包含模型加载、排队、上传和网络耗时。模型加载 ${Number(profile.load_seconds || 0).toFixed(2)} 秒，单独统计。</p><p>文本、图片和视频的输入长度与复杂度不同；小样本结果仅供当前机器参考，不代表完整 Benchmark 平均速度。${data.matches_current_profile ? "" : "当前启动配置与测试配置不同，请以报告中的配置为准。"} <a href="/api/latency" target="_blank" rel="noopener">查看逐次原始记录</a></p>`;
+    }
+    $$(".latency-panel").forEach((node) => { node.innerHTML = html; });
+  } catch (error) {
+    $$(".latency-panel").forEach((node) => { node.textContent = `耗时报告读取失败：${error.message}`; });
+  }
+}
+
 async function init() {
   setupEvents();
-  try { await Promise.all([loadSummary(), loadCases()]); }
+  try { await Promise.all([loadSummary(), loadCases(), loadLatency()]); }
   catch (error) { toast(`初始化失败：${error.message}`); }
   setInterval(refreshModelStatus, 3500);
 }

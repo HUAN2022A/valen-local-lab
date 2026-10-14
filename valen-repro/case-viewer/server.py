@@ -391,6 +391,18 @@ def create_app(args: argparse.Namespace) -> FastAPI:
     def summary():
         return {"benchmark": store.summary, "model": manager.status(), "demo": demo}
 
+    @app.get("/api/latency")
+    def latency():
+        path = HERE / "latency-report.json"
+        if not path.is_file():
+            return {"available": False, "reason": "尚未运行小范围耗时测试"}
+        report = json.loads(path.read_text(encoding="utf-8"))
+        if report.get("status") != "complete":
+            return {"available": False, "reason": "耗时测试尚未完成或失败"}
+        profile = report.get("profile", {})
+        matches = not demo and all(profile.get(key) == getattr(args, key) for key in ("device", "dtype", "quant", "low_media"))
+        return {"available": True, "matches_current_profile": matches, "report": report}
+
     @app.get("/api/cases")
     def cases(
         offset: int = Query(0, ge=0),

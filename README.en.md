@@ -53,3 +53,15 @@ Installation and asset preparation require internet access. Inference runs local
 Use [Issues](https://github.com/HUAN2022A/valen-local-lab/issues) for reproducible bugs and [Discussions](https://github.com/HUAN2022A/valen-local-lab/discussions) for questions and hardware results. Include your OS, GPU, launch command and error message; omit private inputs and credentials.
 
 This is an independent local interface and reproduction toolkit, not the official model project. Upstream: [Liuziyu77/Valen](https://github.com/Liuziyu77/Valen) at `95f06e8be99bd41e4a98aceddd3e4339c5a8e652` (Apache-2.0). Model: [Valen-0.8B](https://huggingface.co/Valen-Team/Valen-0.8B). Dataset: [VisualDecisionBench](https://huggingface.co/datasets/Valen-Team/VisualDecisionBench). Follow each upstream project's terms. The original demo SVG is CC0-1.0.
+
+## Small-sample request latency
+
+The interface shows measured text/image/video latency on an RTX 3060 Laptop, BF16, without quantization. Each modality uses three distinct inputs across three rounds (nine timed requests), plus one excluded warmup. Each request asks one Choice question. Timing includes media preprocessing and synchronized GPU inference, excluding model loading, queueing, uploads and HTTP overhead. Input lengths and complexity differ, so these are local sample results, not universal modality speeds.
+
+See [per-request measurements](valen-repro/case-viewer/latency-report.json). To rerun against a running full lab:
+
+```powershell
+& $py .\valen-repro\case-viewer\benchmark-latency.py
+```
+
+This replaces only the latency report. Refresh the interface after completion. It does not modify benchmark predictions.

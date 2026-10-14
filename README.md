@@ -82,3 +82,15 @@ models/                     下载的模型和缓存（忽略）
 遇到问题请通过 [Issues](https://github.com/HUAN2022A/valen-local-lab/issues) 提供启动方式、错误信息、Windows/Python/GPU 版本；不要提交密钥或私人媒体。想交流使用方法和复现结果，请使用 [Discussions](https://github.com/HUAN2022A/valen-local-lab/discussions)。
 
 计划增加推理历史导出、从案例复制问题和批量推理。欢迎提交独立的小改进，尤其是安装体验、英文界面和更多平台的实测记录。
+
+## 小范围单次推理耗时
+
+页面显示 RTX 3060 Laptop、BF16、无量化配置下的实测报告。文本、图片、视频分别采用 3 个不同输入 × 3 轮（每种 9 次），每种另有 1 次预热，不计入平均值。计时包括媒体预处理和 GPU 推理，不包括模型加载、排队、上传和网络耗时；输入复杂度不同，不能把模态间差异全部归因于模型。
+
+逐次记录见 [latency-report.json](valen-repro/case-viewer/latency-report.json)。在完整版运行时可以复测：
+
+```powershell
+& $py .\valen-repro\case-viewer\benchmark-latency.py
+```
+
+复测会替换小范围耗时报告，不修改原 Benchmark 预测。完成后刷新页面。脚本读取三个不同媒体记录，各提交一道 Choice 问题；首次文本请求还可能触发模型加载，加载耗时另行记录。
