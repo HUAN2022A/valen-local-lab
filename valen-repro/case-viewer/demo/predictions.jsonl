@@ -1,0 +1,4 @@
+{"record_index": 0, "qid": "color", "task": "choice", "target": {"blue": 1, "yellow": 0, "green": 0}, "probabilities": {"blue": 0.92, "yellow": 0.05, "green": 0.03}, "answer": {"choice": "blue"}, "metrics": {"accuracy": 1}, "record_id": "synthetic-shapes-001"}
+{"record_index": 0, "qid": "count", "task": "choice", "target": {"two": 0, "three": 1, "four": 0}, "probabilities": {"two": 0.55, "three": 0.4, "four": 0.05}, "answer": {"choice": "two"}, "metrics": {"accuracy": 0}, "record_id": "synthetic-shapes-001"}
+{"record_index": 0, "qid": "red", "task": "noul", "target": {"true": 0, "false": 1}, "probabilities": {"true": 0.08, "false": 0.92}, "answer": {"noul": 0.08}, "metrics": {"accuracy": 1}, "record_id": "synthetic-shapes-001"}
+{"record_index": 0, "qid": "clarity", "task": "score", "target": {"0": 0, "1": 0.2, "2": 0.8}, "probabilities": {"0": 0.05, "1": 0.2, "2": 0.75}, "answer": {"score": 1.7}, "metrics": {"accuracy": null}, "record_id": "synthetic-shapes-001"}

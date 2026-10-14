@@ -2,6 +2,7 @@ Valen/
 models/
 logs/
 .venv/
+.venv-demo/
 __pycache__/
 *.py[cod]
 .local-runtime/

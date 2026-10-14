@@ -51,9 +51,13 @@ def compact_text(value: str, limit: int = 120) -> str:
 
 
 class CaseStore:
-    def __init__(self) -> None:
+    def __init__(self, demo: bool = False) -> None:
         self.cases: list[dict[str, Any]] = []
         self.by_id: dict[str, dict[str, Any]] = {}
+        if demo:
+            self._load_subset("image", HERE / "demo/eval-image.jsonl", HERE / "demo/predictions.jsonl")
+            self.summary = self._summary()
+            return
         self._load_subset(
             "image",
             DATA_ROOT / "eval-image.jsonl",
@@ -371,14 +375,21 @@ def parse_criteria(question_type: str, raw: str) -> dict[str, str] | list[str] |
     return result
 
 
+class DemoManager:
+    def status(self) -> dict[str, Any]:
+        return {"phase": "demo", "detail": "示例体验 · 未加载模型", "dtype": "demo",
+                "quant": "none", "device": "none", "gpu": None, "low_media": False}
+
+
 def create_app(args: argparse.Namespace) -> FastAPI:
-    store = CaseStore()
-    manager = ModelManager(args.device, args.dtype, args.quant, args.low_media)
+    demo = getattr(args, "demo", False)
+    store = CaseStore(demo=demo)
+    manager = DemoManager() if demo else ModelManager(args.device, args.dtype, args.quant, args.low_media)
     app = FastAPI(title="Valen Local Lab", docs_url=None, redoc_url=None)
 
     @app.get("/api/summary")
     def summary():
-        return {"benchmark": store.summary, "model": manager.status()}
+        return {"benchmark": store.summary, "model": manager.status(), "demo": demo}
 
     @app.get("/api/cases")
     def cases(
@@ -400,8 +411,8 @@ def create_app(args: argparse.Namespace) -> FastAPI:
 
     @app.get("/api/media/{asset_path:path}")
     def media(asset_path: str):
-        candidate = (DATA_ROOT / asset_path).resolve()
-        root = DATA_ROOT.resolve()
+        root = (HERE / "demo" if demo else DATA_ROOT).resolve()
+        candidate = (root / asset_path).resolve()
         if root not in candidate.parents or not candidate.is_file():
             raise HTTPException(404, "媒体文件不存在")
         return FileResponse(candidate)
@@ -412,6 +423,8 @@ def create_app(args: argparse.Namespace) -> FastAPI:
 
     @app.post("/api/model/unload")
     def unload_model():
+        if demo:
+            raise HTTPException(409, "体验模式未加载模型，请启动完整版进行推理")
         manager.unload()
         return manager.status()
 
@@ -423,6 +436,8 @@ def create_app(args: argparse.Namespace) -> FastAPI:
         criteria: str = Form(""),
         media_file: UploadFile | None = File(None),
     ):
+        if demo:
+            raise HTTPException(409, "体验模式仅展示合成案例，请按 README 安装完整版进行真实推理")
         if question_type not in {"choice", "noul", "score"}:
             raise HTTPException(400, "question_type 仅支持 choice、noul、score")
         instructions = instructions.strip()
@@ -483,6 +498,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dtype", choices=("native", "bf16", "fp32"), default="bf16")
     parser.add_argument("--quant", choices=("none", "int8", "nf4"), default="none")
     parser.add_argument("--low-media", action="store_true")
+    parser.add_argument("--demo", action="store_true", help="Browse bundled synthetic examples without a model, GPU or benchmark downloads")
     return parser.parse_args()
 
 

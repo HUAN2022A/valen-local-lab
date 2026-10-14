@@ -54,11 +54,22 @@ function labelFor(item, key) {
 async function loadSummary() {
   const data = await api("/api/summary");
   const b = data.benchmark;
+  if (data.demo) {
+    const notice = $("#demo-notice");
+    notice.hidden = false;
+    notice.textContent = "示例体验模式：以下 4 道题、概率与评分均为人工合成，仅演示界面功能，不代表 Valen 模型预测或真实 Benchmark 成绩。真实推理请按 README 安装完整版。";
+    $(".hero h1").textContent = "先用 4 道合成示例，体验模型结果如何被查看。";
+    $(".eyebrow").textContent = "SYNTHETIC UI DEMO";
+    $(".orbit-core").textContent = "DEMO";
+    $("#unload-model").disabled = true;
+    document.querySelector('[data-view="benchmark"]').textContent = "示例案例";
+    document.querySelectorAll('#infer-form input, #infer-form textarea, #infer-form select, #infer-form button').forEach((node) => { node.disabled = true; });
+  }
   $("#metrics").innerHTML = `
     <article><span>全部问题</span><strong>${formatNumber(b.questions)}</strong><small>${formatNumber(b.records)} 条媒体记录</small></article>
     <article><span>图片问题</span><strong>${formatNumber(b.image)}</strong><small>Image</small></article>
     <article><span>视频问题</span><strong>${formatNumber(b.video)}</strong><small>Video</small></article>
-    <article class="accent"><span>硬标签准确率</span><strong>${formatPct(b.accuracy, 2)}</strong><small>${formatNumber(b.hard_correct)} / ${formatNumber(b.hard_scored)}</small></article>`;
+    <article class="accent"><span>${data.demo ? "示例匹配率（合成）" : "硬标签准确率"}</span><strong>${formatPct(b.accuracy, 2)}</strong><small>${formatNumber(b.hard_correct)} / ${formatNumber(b.hard_scored)}</small></article>`;
   updateModelState(data.model);
 }
 
