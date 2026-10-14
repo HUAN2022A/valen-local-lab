@@ -403,6 +403,33 @@ def create_app(args: argparse.Namespace) -> FastAPI:
         matches = not demo and all(profile.get(key) == getattr(args, key) for key in ("device", "dtype", "quant", "low_media"))
         return {"available": True, "matches_current_profile": matches, "report": report}
 
+    @app.get("/api/examples")
+    def examples():
+        items = [
+            {"id": "text-cat", "label": "文本 · 动物识别", "modality": "text", "state_text": "A cat is sitting on a blue sofa near the window.", "instructions": "Which animal is sitting on the sofa?", "question_type": "choice", "criteria": "cat | A cat\ndog | A dog\nrabbit | A rabbit\nbird | A bird", "note": "英文基础选择题，可修改动物或选项观察概率变化。"},
+            {"id": "text-refund", "label": "文本 · 中文退款分流", "modality": "text", "state_text": "我的订单被重复扣款两次，请帮我退回多扣的钱。", "instructions": "这条请求应该由哪个部门处理？", "question_type": "choice", "criteria": "billing | 支付与退款部门\ntechnical | 技术支持部门\nsales | 销售咨询部门", "note": "中文意图分流；模型的高概率不保证判断正确。"},
+            {"id": "text-negation", "label": "文本 · 否定句判断", "modality": "text", "state_text": "我不要退款，只需要把发票抬头改成公司名称。", "instructions": "客户是否要求退款？", "question_type": "noul", "criteria": "", "note": "预期为否，用于观察模型对否定句的理解。"},
+            {"id": "text-score", "label": "文本 · 紧急程度评分", "modality": "text", "state_text": "生产系统完全无法登录，所有客户都无法下单，需要立即修复。", "instructions": "这次故障有多紧急？", "question_type": "score", "criteria": "低：不影响正常使用\n中：部分功能受影响\n高：核心业务完全中断", "note": "Score 为三个等级的概率加权得分，范围 0–2；不是准确率。"},
+        ]
+        for modality in ("image", "video"):
+            chosen = []
+            sources = set()
+            for task in ("choice", "noul"):
+                candidates = [case for case in store.cases if case["modality"] == modality and case["task"] == task
+                              and case.get("media_path") and Path(case["media_path"]).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".webm", ".avi"}
+                              and case["record_index"] not in {value["record_index"] for value in chosen}]
+                case = next((value for value in candidates if value["source"] not in sources), candidates[0] if candidates else None)
+                if case is None:
+                    continue
+                chosen.append(case)
+                sources.add(case["source"])
+                items.append({"id": case["id"], "label": f"{'图片' if modality == 'image' else '视频'} · {case['source']} · {task.title()}",
+                              "modality": modality, "state_text": case["state_text"], "instructions": case["question"],
+                              "question_type": case["task"], "criteria": "\n".join(f"{key} | {value}" for key, value in case["criteria"].items()) if task == "choice" else "",
+                              "media_url": case["media_url"], "media_name": Path(case["media_path"]).name,
+                              "note": "使用本机 Benchmark 媒体；切换时自动载入，不需要重新手动上传。"})
+        return {"examples": items}
+
     @app.get("/api/cases")
     def cases(
         offset: int = Query(0, ge=0),

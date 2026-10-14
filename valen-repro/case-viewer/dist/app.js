@@ -53,6 +53,7 @@ function labelFor(item, key) {
 
 async function loadSummary() {
   const data = await api("/api/summary");
+  appState.demo = Boolean(data.demo);
   const b = data.benchmark;
   if (data.demo) {
     const notice = $("#demo-notice");
@@ -247,30 +248,15 @@ function setupEvents() {
     if (type === "choice") { field.childNodes[0].nodeValue = "候选选项 "; area.value = "A | 第一个选项\nB | 第二个选项\nC | 第三个选项\nD | 第四个选项"; }
   });
   $("#media-file").addEventListener("change", (event) => {
+    if (!exampleLoading && !appState.demo && $("#run-inference").dataset.busy !== "true") $("#run-inference").disabled = false;
     const file = event.target.files[0]; const preview = $("#media-preview"); const prompt = $("#upload-prompt");
     if (!file) { preview.hidden = true; prompt.hidden = false; preview.innerHTML = ""; return; }
     if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
     const url = URL.createObjectURL(file); preview.dataset.url = url; prompt.hidden = true; preview.hidden = false;
     preview.innerHTML = file.type.startsWith("video/") ? `<video src="${url}" controls></video>` : `<img src="${url}" alt="上传预览">`;
   });
-  $("#fill-example").addEventListener("click", () => {
-    const form = $("#infer-form");
-    form.elements.state_text.value = "A cat is sitting on a blue sofa near the window.";
-    form.elements.instructions.value = "Which animal is sitting on the sofa?";
-    $("#question-type").value = "choice";
-    $("#criteria-field").hidden = false;
-    $("#criteria-field").childNodes[0].nodeValue = "候选选项 ";
-    $("#criteria").value = "cat | A cat\ndog | A dog\nrabbit | A rabbit\nbird | A bird";
-    const mediaInput = $("#media-file");
-    const preview = $("#media-preview");
-    if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
-    mediaInput.value = "";
-    preview.dataset.url = "";
-    preview.innerHTML = "";
-    preview.hidden = true;
-    $("#upload-prompt").hidden = false;
-    toast("示例已填入，可以直接运行推理");
-  });
+  $("#fill-example").addEventListener("click", applyExample);
+  $("#example-select").addEventListener("change", applyExample);
   $("#infer-form").addEventListener("submit", runInference);
   $("#unload-model").addEventListener("click", async () => {
     try { updateModelState(await api("/api/model/unload", { method: "POST" })); toast("模型已卸载，显存已释放"); } catch (error) { toast(error.message); }
@@ -280,6 +266,8 @@ function setupEvents() {
 async function runInference(event) {
   event.preventDefault();
   const button = $("#run-inference");
+  button.dataset.busy = "true";
+  $("#example-select").disabled = true; $("#fill-example").disabled = true;
   button.disabled = true; button.querySelector("span").textContent = "正在推理…";
   $("#custom-output").className = "running-view";
   $("#custom-output").innerHTML = '<div class="spinner"></div><h3>模型正在思考</h3><p>首次运行包含模型加载时间，请稍候。</p>';
@@ -291,7 +279,68 @@ async function runInference(event) {
     $("#custom-output").innerHTML = `<div class="error-card"><h3>推理失败</h3><p>${esc(error.message)}</p></div>`;
     refreshModelStatus();
   } finally {
+    button.dataset.busy = "false";
+    $("#example-select").disabled = false; $("#fill-example").disabled = false;
     button.disabled = false; button.querySelector("span").textContent = "运行本地推理";
+  }
+}
+
+let exampleItems = [];
+let exampleLoading = false;
+
+async function loadExamples() {
+  try {
+    exampleItems = (await api("/api/examples")).examples;
+    const groups = { text: "文本", image: "图片", video: "视频" };
+    $("#example-select").innerHTML = Object.entries(groups).map(([type, label]) => {
+      const items = exampleItems.filter((item) => item.modality === type);
+      return items.length ? `<optgroup label="${label}">${items.map((item) => `<option value="${esc(item.id)}">${esc(item.label)}</option>`).join("")}</optgroup>` : "";
+    }).join("");
+  } catch (error) {
+    $("#example-note").textContent = `用例读取失败：${error.message}`;
+  }
+}
+
+async function applyExample() {
+  if (exampleLoading || $("#run-inference").dataset.busy === "true" || appState.demo) return;
+  const item = exampleItems.find((value) => value.id === $("#example-select").value);
+  if (!item) return;
+  exampleLoading = true;
+  const controls = [$("#run-inference"), $("#fill-example"), $("#example-select"), $("#media-file")];
+  let loaded = false;
+  controls.forEach((node) => { node.disabled = true; });
+  const form = $("#infer-form");
+  const preview = $("#media-preview");
+  const mediaInput = $("#media-file");
+  if (preview.dataset.url) URL.revokeObjectURL(preview.dataset.url);
+  mediaInput.value = ""; preview.dataset.url = ""; preview.innerHTML = ""; preview.hidden = true;
+  $("#upload-prompt").hidden = false;
+  form.elements.state_text.value = item.state_text;
+  form.elements.instructions.value = item.instructions;
+  $("#question-type").value = item.question_type;
+  $("#criteria-field").hidden = item.question_type === "noul";
+  $("#criteria-field").childNodes[0].nodeValue = item.question_type === "score" ? "评分标准 " : "候选选项 ";
+  $("#criteria").value = item.criteria;
+  $("#example-note").textContent = item.media_url ? "正在载入用例媒体…" : item.note;
+  try {
+    if (item.media_url) {
+      const response = await fetch(item.media_url);
+      if (!response.ok) throw new Error("媒体读取失败");
+      const blob = await response.blob();
+      const file = new File([blob], item.media_name, { type: blob.type });
+      const transfer = new DataTransfer(); transfer.items.add(file); mediaInput.files = transfer.files;
+      mediaInput.dispatchEvent(new Event("change"));
+    }
+    $("#custom-output").className = "output-empty";
+    $("#custom-output").innerHTML = '<h3>用例已载入</h3><p>点击“运行本地推理”，查看当前用例的实际模型结果。</p>';
+    $("#example-note").textContent = item.note;
+    loaded = true;
+    toast("用例已载入，可以直接运行推理");
+  } catch (error) {
+    $("#example-note").textContent = `载入失败：${error.message}，请重新载入或手动上传媒体。`;
+  } finally {
+    controls.forEach((node) => { node.disabled = node.id === "run-inference" && !loaded; });
+    exampleLoading = false;
   }
 }
 
@@ -314,7 +363,7 @@ async function loadLatency() {
 
 async function init() {
   setupEvents();
-  try { await Promise.all([loadSummary(), loadCases(), loadLatency()]); }
+  try { await Promise.all([loadSummary(), loadCases(), loadLatency(), loadExamples()]); }
   catch (error) { toast(`初始化失败：${error.message}`); }
   setInterval(refreshModelStatus, 3500);
 }

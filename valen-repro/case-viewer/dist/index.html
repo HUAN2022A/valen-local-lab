@@ -81,7 +81,9 @@
 
       <div class="custom-grid">
         <form id="infer-form" class="composer">
-          <div class="section-title"><span>01</span><div><h2>输入内容</h2><p>文本可单独使用，也可以作为媒体背景说明。</p></div><button class="example-button" id="fill-example" type="button">✦ 填入示例</button></div>
+          <div class="section-title"><span>01</span><div><h2>输入内容</h2><p>文本可单独使用，也可以作为媒体背景说明。</p></div><button class="example-button" id="fill-example" type="button">✦ 载入用例</button></div>
+          <label>测试用例<select id="example-select"><option value="">正在读取可用用例…</option></select></label>
+          <p id="example-note" class="example-note" role="status">可切换文本、图片和视频；选择后会自动填写问题并载入媒体。</p>
           <label>背景文字<textarea name="state_text" rows="4" placeholder="例如：请观察画面并回答问题。"></textarea></label>
           <label class="upload-zone" id="upload-zone">
             <input id="media-file" name="media_file" type="file" accept="image/*,video/*">

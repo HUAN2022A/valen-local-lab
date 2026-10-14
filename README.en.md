@@ -65,3 +65,7 @@ See [per-request measurements](valen-repro/case-viewer/latency-report.json). To 
 ```
 
 This replaces only the latency report. Refresh the interface after completion. It does not modify benchmark predictions.
+
+## Switchable custom inference examples
+
+The full lab includes four text presets covering Choice, Noul and Score, plus two image and two video presets selected from the installed benchmark. Selecting a preset fills its question and criteria and attaches local media automatically. Loading a preset does not run the model. Media download failures disable inference until retry or manual upload. Third-party benchmark media is not bundled with the repository. The no-model demo exposes text presets only and keeps inference disabled.

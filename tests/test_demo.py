@@ -52,6 +52,16 @@ class DemoTests(unittest.TestCase):
         self.assertEqual(summary['model']['phase'], 'demo')
         self.assertIsNone(summary['model']['gpu'])
 
+    def test_text_examples_cover_choice_noul_score_without_missing_media(self):
+        examples = self.get('/api/examples')['examples']
+        self.assertEqual(len(examples), 4)
+        self.assertEqual(len({item['id'] for item in examples}), len(examples))
+        self.assertEqual({item['question_type'] for item in examples}, {'choice', 'noul', 'score'})
+        for item in examples:
+            self.assertEqual(item['modality'], 'text')
+            self.assertTrue(item['instructions'])
+            self.assertNotIn('media_url', item)
+
     def test_filter_search_pagination_and_details(self):
         wrong = self.get('/api/cases?result=wrong')
         self.assertEqual(wrong['total'], 1)
